@@ -64,6 +64,19 @@ pad.vibrationActuator
   .catch(() => {});
 ```
 
+A resolved promise doesn't prove the motors moved, so a page can't detect silent rumble. Keep rumble as extra feedback, and never use it as the only signal for something the player needs to know.
+
+### Known limitation: no rumble on one macOS USB setup
+
+In November 2026, an Xbox One S controller (`045E:02EA`) on an Intel Mac played the game normally over USB, but it didn't rumble:
+
+- The controller reported `dual-rumble` support, and `playEffect` resolved with `"complete"`, but the motors didn't move. This was in the Claude desktop app's Chromium browser.
+- Regular Chrome didn't buzz either, on [html5gamepad.com](https://html5gamepad.com).
+
+The cause isn't confirmed. The likely cause is how Chrome and macOS handle the controller over USB, but a faulty motor would look the same. We haven't tested this controller over Bluetooth, or on Windows or an Xbox.
+
+If rumble doesn't work on your setup, test the controller on a page like html5gamepad.com first. If that page doesn't buzz, the problem is below your game code. Then try Bluetooth, and try the controller on another device to check the motors.
+
 ## Test without hardware
 
 Paste this in the console, then press the fake pad with `fake.buttons[2].pressed = true`.
