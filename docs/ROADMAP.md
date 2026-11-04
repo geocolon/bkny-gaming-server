@@ -30,7 +30,8 @@ Each milestone should end with something playable.
 
 ## Milestone 4: Run it for real
 
-- [ ] Add CI: tests, image builds, image scanning
+- [x] Add CI: tests, image builds
+- [ ] Add image scanning to CI
 - [ ] Scrape `/metrics` into Prometheus, and alert on tick overruns
 - [ ] Run regional clusters, and pick the closest with a latency probe
 - [ ] Add quick-play matchmaking with Open Match 2 or Nakama

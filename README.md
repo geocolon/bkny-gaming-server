@@ -1,5 +1,7 @@
 # BKNY Brawler
 
+[![CI](https://github.com/geocolon/bkny-gaming-server/actions/workflows/ci.yml/badge.svg)](https://github.com/geocolon/bkny-gaming-server/actions/workflows/ci.yml)
+
 An open source template for an online co-op beat 'em up that runs in the browser. It has a deterministic combat simulation, server-authoritative netcode with client prediction, Xbox controller support, and deployment files for Docker, Kubernetes and Agones.
 
 The characters and city are placeholder shapes drawn in code. Swap in your own art, music and story. This is a genre template, so don't add anything copied from an existing game.
