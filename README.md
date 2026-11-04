@@ -6,7 +6,9 @@ The characters and city are placeholder shapes drawn in code. Swap in your own a
 
 ## Quick start
 
-Needs Node 22 or newer.
+Try the [playable demo](https://geocolon.github.io/bkny-gaming-server/) in your browser. It has local co-op only, because online co-op needs the game server.
+
+To run it yourself, you need Node 22 or newer.
 
 ```bash
 npm install

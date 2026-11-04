@@ -114,6 +114,13 @@ $("join").addEventListener("click", () => {
   else statusLine.textContent = "Enter a room code first";
 });
 
+/** The static demo has no edge or game server to connect to. */
+if (import.meta.env.VITE_DEMO) {
+  $("create").remove();
+  $("join-row").remove();
+  $("demo-note").hidden = false;
+}
+
 input.onPadsChanged = (names) => {
   padsLine.textContent = names.length ? `Controllers: ${names.map((n) => n.split("(")[0].trim()).join(", ")}` : "Plug in an Xbox controller and press any button.";
 };

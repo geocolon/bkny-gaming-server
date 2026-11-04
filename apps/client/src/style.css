@@ -23,4 +23,5 @@ button { cursor: pointer; }
 button:focus-visible, input:focus-visible, button:hover { outline: none; border-color: var(--accent); }
 #status { min-height: 1.4em; margin: 0; color: var(--accent); }
 #pads { margin: 0; }
+#demo-note { margin: 0; color: var(--muted); }
 .hint { margin: 0; color: var(--muted); font-size: 12px; }
