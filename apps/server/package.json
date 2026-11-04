@@ -1,0 +1,9 @@
+{
+  "name": "@bkny/server", "version": "0.1.0", "private": true, "type": "module",
+  "scripts": {
+    "dev": "esbuild src/main.ts --bundle --platform=node --format=esm --packages=external --alias:@bkny/sim=../../packages/sim/src/index.ts --alias:@bkny/netcode=../../packages/netcode/src/index.ts --outfile=dist/main.js --log-level=warning && node --watch dist/main.js",
+    "build": "esbuild src/main.ts --bundle --platform=node --format=esm --packages=external --alias:@bkny/sim=../../packages/sim/src/index.ts --alias:@bkny/netcode=../../packages/netcode/src/index.ts --outfile=dist/main.js"
+  },
+  "dependencies": { "@bkny/netcode": "*", "@bkny/sim": "*", "ws": "^8.18.0" },
+  "optionalDependencies": { "@google-cloud/agones-sdk": "^1.62.0" }
+}

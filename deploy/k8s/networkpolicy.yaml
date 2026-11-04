@@ -1,0 +1,17 @@
+# Game servers accept traffic only from the edge, which is what enforces tickets.
+# 9357/9358 are the Agones sidecar and stay inside the pod.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: game-from-edge-only
+spec:
+  podSelector:
+    matchLabels: { app: bkny-game }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: edge }
+      ports:
+        - protocol: TCP
+          port: 7777

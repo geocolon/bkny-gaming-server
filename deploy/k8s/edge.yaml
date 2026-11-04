@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: edge
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: edge
+rules:
+  - apiGroups: ["allocation.agones.dev"]
+    resources: ["gameserverallocations"]
+    verbs: ["create"]
+  - apiGroups: ["agones.dev"]
+    resources: ["gameservers"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: edge
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: edge
+subjects:
+  - kind: ServiceAccount
+    name: edge
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge
+  labels: { app: edge }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: edge }
+  template:
+    metadata:
+      labels: { app: edge }
+    spec:
+      serviceAccountName: edge
+      # Long-lived sockets: give players time to finish a match during a rollout.
+      terminationGracePeriodSeconds: 600
+      containers:
+        - name: edge
+          image: bkny/edge
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: BACKEND
+              value: agones
+            - name: FLEET
+              value: bkny-game
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef: { fieldPath: metadata.namespace }
+            - name: EDGE_SECRET
+              valueFrom:
+                secretKeyRef: { name: edge, key: secret }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+          resources:
+            requests: { cpu: 100m, memory: 96Mi }
+            limits: { memory: 192Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edge
+spec:
+  selector: { app: edge }
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: edge
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: edge
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 60 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: edge
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: edge }

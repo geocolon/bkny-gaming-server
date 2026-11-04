@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: bkny
+resources:
+  - namespace.yaml
+  - fleet.yaml
+  - edge.yaml
+  - client.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+images:
+  - name: bkny/server
+    newTag: dev
+  - name: bkny/edge
+    newTag: dev
+  - name: bkny/client
+    newTag: dev

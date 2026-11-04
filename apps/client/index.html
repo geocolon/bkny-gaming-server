@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BKNY Brawler</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main id="stage">
+      <canvas id="game" width="480" height="270"></canvas>
+      <section id="menu">
+        <h1>BKNY <span>BRAWLER</span></h1>
+        <div id="main-menu" class="stack">
+          <button id="local">Local co-op</button>
+          <button id="create">Create online room</button>
+          <div class="row">
+            <input id="code" placeholder="Room code" aria-label="Room code" autocomplete="off" />
+            <button id="join">Join</button>
+          </div>
+        </div>
+        <p id="status" role="status"></p>
+        <p id="pads">Plug in an Xbox controller and press any button.</p>
+        <p class="hint">
+          Pad: stick or D-pad move · X attack · A jump · B special · Menu joins local play<br />
+          Keys: arrows or WASD · J attack · K jump · L special · Enter joins · F3 debug
+        </p>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

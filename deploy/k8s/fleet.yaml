@@ -1,0 +1,52 @@
+# One GameServer pod runs one match, then exits. Agones replaces it from the Fleet.
+apiVersion: agones.dev/v1
+kind: Fleet
+metadata:
+  name: bkny-game
+spec:
+  replicas: 2
+  scheduling: Packed
+  template:
+    metadata:
+      labels:
+        app: bkny-game
+    spec:
+      ports:
+        - name: game
+          portPolicy: Dynamic
+          containerPort: 7777
+          protocol: TCP
+      health:
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        failureThreshold: 3
+      template:
+        metadata:
+          labels:
+            app: bkny-game
+        spec:
+          containers:
+            - name: game
+              image: bkny/server
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: AGONES
+                  value: "1"
+              resources:
+                # Requests equal limits: a CPU-throttled 60Hz loop is a visible stutter.
+                requests: { cpu: 250m, memory: 128Mi }
+                limits: { cpu: 250m, memory: 128Mi }
+---
+# Keeps warm servers ready so "Create room" never waits on a pod start.
+apiVersion: autoscaling.agones.dev/v1
+kind: FleetAutoscaler
+metadata:
+  name: bkny-game
+spec:
+  fleetName: bkny-game
+  policy:
+    type: Buffer
+    buffer:
+      bufferSize: 2
+      minReplicas: 2
+      maxReplicas: 50

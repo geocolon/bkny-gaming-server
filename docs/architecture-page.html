@@ -1,0 +1,169 @@
+<title>BKNY Brawler Architecture</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: a single technical column, with diagrams and tables as full-width plates. */
+:root {
+  --bg: #f3f1ee; --surface: #fbfaf8; --fg: #20242c; --muted: #5d636e; --line: #d5d2cc;
+  --brick: #a5432a; --signal: #0f7470;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "Source Sans 3", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15181e; --surface: #1d2129; --fg: #ecebe7; --muted: #a5a9b2; --line: #363b46;
+  --brick: #e5835f; --signal: #4fc4bc; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #15181e; --surface: #1d2129; --fg: #ecebe7; --muted: #a5a9b2; --line: #363b46;
+  --brick: #e5835f; --signal: #4fc4bc; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font: 400 17px/1.55 var(--body); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 72px; }
+main { display: flex; flex-direction: column; gap: 44px; max-width: 920px; margin-inline: auto; }
+section { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+h1, h2 { font-family: var(--display); font-weight: 700; line-height: 1.05; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(42px, 8vw, 68px); letter-spacing: 0.01em; }
+h2 { font-size: 32px; color: var(--brick); }
+p { margin: 0; max-width: 68ch; }
+.lede { font-size: 20px; color: var(--muted); }
+a { color: var(--signal); }
+code { font-family: var(--mono); font-size: 0.86em; }
+.plate { background: var(--surface); border: 1px solid var(--line); padding: 16px; overflow-x: auto; }
+.plate pre { margin: 0; }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+th { text-align: left; font-weight: 600; color: var(--muted); font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; }
+th, td { padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+.scroll { overflow-x: auto; min-width: 0; }
+.ok { color: var(--signal); font-weight: 600; white-space: nowrap; }
+.no { color: var(--brick); font-weight: 600; white-space: nowrap; }
+ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; max-width: 68ch; }
+</style>
+
+<main>
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <h1>BKNY Brawler Architecture</h1>
+    <p class="lede">How an open source browser beat 'em up runs online co-op for 1 to 4 players on Docker, Kubernetes and Agones, with Xbox controllers.</p>
+  </header>
+
+  <section>
+    <h2>The system at a glance</h2>
+    <p>Each match runs in its own pod. Players reach it through a small gateway, because an HTTPS page can only open secure sockets and game nodes don't have certificates.</p>
+    <div class="plate"><pre class="mermaid">
+flowchart LR
+  subgraph B[Browser]
+    P[Xbox controller] --> C[Client: prediction and render]
+  end
+  C -- HTTPS and WSS --> I[Ingress with TLS]
+  subgraph K[Kubernetes]
+    I -- static files --> W[Client pods]
+    I -- rooms and sockets --> E[Edge pods, stateless]
+    E -- allocate room --> A[Agones controller]
+    A -- manages --> F
+    subgraph F[Agones Fleet]
+      G1[Match pod]
+      G2[Match pod]
+      G3[Warm Ready pod]
+    end
+    E -- signed ticket only --> G1
+    E -- signed ticket only --> G2
+  end
+    </pre></div>
+  </section>
+
+  <section>
+    <h2>How a match starts and ends</h2>
+    <div class="plate"><pre class="mermaid">
+sequenceDiagram
+  participant C as Browser
+  participant E as Edge
+  participant K as Agones
+  participant G as Match pod
+  C->>E: Create room
+  E->>K: GameServerAllocation
+  K-->>E: Allocated pod
+  E-->>C: Room code and 60s ticket
+  C->>E: Open WSS with ticket
+  E->>G: Forward socket
+  G-->>C: Full world snapshot
+  loop Every tick at 60Hz
+    C->>G: Input for a future tick
+    G-->>C: Confirmed inputs, 30 sends a second
+  end
+  G->>K: Shutdown after the match
+  K->>K: Replace pod from Fleet
+    </pre></div>
+  </section>
+
+  <section>
+    <h2>Five decisions that shape it</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Question</th><th>Choice</th><th>Reason</th></tr></thead>
+      <tbody>
+        <tr><td>Who owns the truth?</td><td>A dedicated server</td><td>Nobody can cheat as host, and one player leaving doesn't end the match.</td></tr>
+        <tr><td>What goes over the wire?</td><td>Inputs, ordered by the server</td><td>Every peer runs the same integer simulation, so bandwidth stays tiny.</td></tr>
+        <tr><td>How does it feel instant?</td><td>Local prediction with replay</td><td>Your punch lands on the frame you press it, and server data corrects the rest.</td></tr>
+        <tr><td>How does it scale?</td><td>One Agones pod per match</td><td>A crash affects one match. A buffer of Ready pods keeps room creation fast.</td></tr>
+        <tr><td>Which browser transport?</td><td>WebSocket for now</td><td>WebTransport is Baseline, but Node has no built-in server and the whole path needs HTTP/3.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Xbox controller in the browser</h2>
+    <p>The Gamepad API needs no plugin. Pair the controller, open the page, and press a button, because browsers hide pads until one is used. Poll <code>navigator.getGamepads()</code> every frame.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Action</th><th>Xbox control</th><th>Standard index</th></tr></thead>
+      <tbody>
+        <tr><td>Move</td><td>Left stick or D-pad</td><td>Axes 0 and 1, buttons 12 to 15</td></tr>
+        <tr><td>Attack</td><td>X or Y</td><td>Buttons 2 and 3</td></tr>
+        <tr><td>Jump</td><td>A</td><td>Button 0</td></tr>
+        <tr><td>Special</td><td>B, RB or RT</td><td>Buttons 1, 5 and 7</td></tr>
+        <tr><td>Join local play</td><td>Menu</td><td>Button 9</td></tr>
+      </tbody>
+    </table></div>
+    <p>Rumble uses <code>vibrationActuator.playEffect("dual-rumble")</code>. It isn't available in every browser, so the game treats it as optional.</p>
+  </section>
+
+  <section>
+    <h2>What has been tested</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Check</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>38 automated tests, including 3 clients on simulated uneven latency</td><td class="ok">Passed</td></tr>
+        <tr><td>Docker Compose stack with a browser and a second client, online</td><td class="ok">0 desyncs</td></tr>
+        <tr><td>Simulated Xbox pad in the browser: menu, movement, attacks, rumble call</td><td class="ok">Passed</td></tr>
+        <tr><td>Agones 1.62 on a local single-node cluster: two clients joined one match by room code, and the pod shut down after they left</td><td class="ok">0 desyncs</td></tr>
+        <tr><td>Network policy on that cluster: edge reaches a game pod, another pod is blocked</td><td class="ok">Passed</td></tr>
+        <tr><td>Ingress with TLS, and a cloud cluster such as EKS</td><td class="no">Not tested</td></tr>
+        <tr><td>A physical Xbox controller</td><td class="no">Not tested</td></tr>
+        <tr><td>Real internet latency, packet loss, and load</td><td class="no">Not tested</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Build plan</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Milestone</th><th>Goal</th><th>Main work</th></tr></thead>
+      <tbody>
+        <tr><td>1. Make it fun</td><td>One wave feels great on a controller</td><td>Sprites, sound, grabs, pickups, playtesting</td></tr>
+        <tr><td>2. Make it a game</td><td>A full run from start to boss</td><td>Level data, three stages, a boss, more characters</td></tr>
+        <tr><td>3. Harden online</td><td>Survives bad connections</td><td>Reconnect, binary protocol, network fault testing, match replays</td></tr>
+        <tr><td>4. Run it for real</td><td>Public launch</td><td>CI, Prometheus, regional clusters, matchmaking, accounts</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Where to learn more</h2>
+    <ul>
+      <li><a href="https://phaser.io/news/2026/06/vibe-code-a-complete-2d-beat-em-up-game-with-phaser-and-codex">Phaser 4 beat 'em up tutorial</a></li>
+      <li><a href="https://gafferongames.com/post/deterministic_lockstep/">Deterministic Lockstep, Gaffer on Games</a></li>
+      <li><a href="https://agones.dev/site/docs/getting-started/create-gameserver/">Agones: create a GameServer</a></li>
+      <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Gamepad_API/Using_the_Gamepad_API">MDN: Using the Gamepad API</a></li>
+      <li><a href="https://www.w3.org/TR/gamepad/">W3C Gamepad specification</a></li>
+      <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/WebTransport_API">MDN: WebTransport API</a></li>
+    </ul>
+  </section>
+</main>
